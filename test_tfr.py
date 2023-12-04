@@ -40,7 +40,7 @@ def get_dataset(fold, split, batch_size=32):
     return ds
 
 
-def get_model(shape: list):
+def get_model(shape: tuple) -> tf.keras.Model:
     inputs = {
         "float_features": tf.keras.Input(
             shape=(None, 136), dtype=tf.float32, name="float_features"
@@ -61,10 +61,7 @@ def get_model(shape: list):
     model = tf.keras.Model(inputs=inputs, outputs=scores)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
-        loss=tfr.keras.losses.PairwiseLogisticLoss(),
-        # loss=tfr.keras.losses.ListMLELoss(
-        #     lambda_weight=tfr.keras.losses.ListMLELambdaWeight(lambda x: 0.5)
-        # ),
+        loss=tfr.keras.losses.ListMLELoss(),
         metrics=[
             tfr.keras.metrics.get("ndcg", topn=1, name="NDCG@1"),
             tfr.keras.metrics.get("ndcg", topn=5, name="NDCG@5"),
@@ -96,22 +93,22 @@ def get_model(shape: list):
 SHAPES = [
     (8,),
     (12,),
-    # (16,),
-    # (24,),
-    # (32,),
-    # (48,),
-    # (64,),
-    # (96,),
-    # (128,),
-    # (16, 8),
-    # (32, 16),
-    # (64, 32),
-    # (96, 48),
-    # (128, 64),
-    # (32, 16, 8),
-    # (64, 32, 16),
-    # (128, 64, 32),
-    # (256, 128, 64),
+    (16,),
+    (24,),
+    (32,),
+    (48,),
+    (64,),
+    (96,),
+    (128,),
+    (16, 8),
+    (32, 16),
+    (64, 32),
+    (96, 48),
+    (128, 64),
+    (32, 16, 8),
+    (64, 32, 16),
+    (128, 64, 32),
+    (256, 128, 64),
 ]
 
 histories = defaultdict(list)
@@ -119,14 +116,16 @@ scores = defaultdict(list)
 
 for shape in SHAPES:
     print(f"\n\n\nModel with shape {shape}.\n")
-    # for fold in range(1, 6):
-    for fold in range(1, 2):
+    for fold in range(1, 6):
         model = get_model(shape)
         ds = get_dataset(fold, "train")
         ds_vali = get_dataset(fold, "vali")
-        history = model.fit(ds, validation_data=ds_vali, epochs=15)
-        histories[shape].append(history.history)
-        scores[shape].append(model.evaluate(ds_vali))
+        history = model.fit(ds, validation_data=ds_vali, epochs=50, verbose=2)
+        histories[str(shape)].append(history.history)
+        scores[str(shape)].append(model.evaluate(ds_vali))
 
-print(histories)
-print(scores)
+
+import json
+
+print("\n\n\n")
+print(json.dumps(dict(histories=dict(histories), scores=dict(scores))))
