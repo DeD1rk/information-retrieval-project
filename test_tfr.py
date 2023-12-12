@@ -30,6 +30,7 @@ def get_dataset(fold, split, batch_size=32):
     ds = ds.shuffle(buffer_size=ds.cardinality()).padded_batch(batch_size=batch_size)
 
     # Create (features, labels) tuples from data and set -1 label for masked items.
+    # Tensorflow Ranking ignores negative labels. See `tfr.utils.is_label_valid`.
     ds = ds.map(
         lambda feature_map: (
             feature_map,
@@ -44,20 +45,15 @@ def get_model(shape: tuple) -> tf.keras.Model:
     inputs = {
         "float_features": tf.keras.Input(
             shape=(None, 136), dtype=tf.float32, name="float_features"
-        ),
+        )
     }
     x = tf.keras.layers.BatchNormalization()(inputs["float_features"])
-
-    # for layer in layers:
-    #     x = layer(x)
-
     for layer_width in shape:
         x = tf.keras.layers.Dense(units=layer_width)(x)
         x = tf.keras.layers.Activation("relu")(x)
 
     scores = tf.squeeze(tf.keras.layers.Dense(units=1)(x), axis=-1)
 
-    # Create, compile and train the model.
     model = tf.keras.Model(inputs=inputs, outputs=scores)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
@@ -100,14 +96,19 @@ SHAPES = [
     (64,),
     (96,),
     (128,),
+    (172,),
+    (256,),
     (16, 8),
     (32, 16),
     (64, 32),
     (96, 48),
     (128, 64),
+    (172, 96),
+    (256, 128),
     (32, 16, 8),
     (64, 32, 16),
     (128, 64, 32),
+    (172, 96, 48),
     (256, 128, 64),
 ]
 
@@ -129,3 +130,6 @@ import json
 
 print("\n\n\n")
 print(json.dumps(dict(histories=dict(histories), scores=dict(scores))))
+
+params = {str(shape): get_model(shape).count_params() for shape in SHAPES}
+print(params)
